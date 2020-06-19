@@ -1,6 +1,7 @@
 /*第一个项目的第一个文件*/
 /*STL的allocater*/
-/*allocater.h*/
+/*mystl_allocater.h*/
+/*极其低效*/
 #ifndef ALLOCATER_H
 #define ALLOCATER_H
 
@@ -92,6 +93,8 @@ namespace mystl {
 	void allocator<T>::deallocate(pointer p, size_type size) {
 			__deallocate(p, size);
 	}			
+
+
 }
 
 #endif
