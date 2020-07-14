@@ -8,20 +8,27 @@
 #include <cstddef>  //for size_t ptrdiff_t
 #include <new>      //for ::operator new ::operator delete
 #include "type_traits.h"
+#include "iterator.h"
 
 
 namespace mystl {
 
 	template <typename T>
 	inline void construct(T *p, const T &value) {
-		::new (p) T(value);
+		new (p) T(value);
 	}
 
 /*如果T类型没有默认构造函数，编译将不通过*/
 	template <typename T>
 	inline void construct(T *p) {
-		::new (p) T();
+		new (p) T();
 	}
+
+    template <typename T>
+    inline void construct(T *p, T &&value) {
+        new (p) T(value);
+    }
+
 
 	template <typename T>
 	inline void destroy(T *p) {
@@ -43,7 +50,7 @@ namespace mystl {
 
 	template <typename ForwardIterator, typename T>
 	inline void
-	__destroy(ForwardIterator first, ForwardIterator last, T*) {
+	__destroy(ForwardIterator first, ForwardIterator last, T) {
 		typedef typename __type_traits<T>::has_trivial_destructor trivial_destructor;
 		__destroy_aux(first, last, trivial_destructor());
 	}
