@@ -52,7 +52,9 @@ namespace mystl {
 		}
 
 		void destroy(iterator pos) {
-			data_allocator.destroy(pos);c
+			if(pos == nullptr) return ;
+			data_allocator.destroy(pos);
+
 		}
 
 		bool check_size()
@@ -102,9 +104,10 @@ namespace mystl {
 			first_free = elements + rhs.size() ;
 			cap = elements + rhs.capacity();
 		}
-
+/*----------------------------------分割线--------------------------------------------*/
 		vector(vector&&);
-
+		vector&& operator=(vector&&);
+/*----------------------------2020.7.18解决移动构造函数和移动赋值运算符-------------------*/
 		/*拷贝赋值运算符*/
 		vector& operator=(const vector &rhs) {
 			difference_t size = rhs.size();
@@ -114,7 +117,6 @@ namespace mystl {
 			first_free = cap = start + size;
 		}
 
-		vector&& operator=(vector&&);
 		
 		/*析构函数*/
 		~vector() { free(); }
@@ -186,16 +188,48 @@ namespace mystl {
 			data_allocator.construct(first_free++, std::move(value)); //后面将改成mystl::move(value);
         }
 
-		iterator insert(const_iterator position, const value_type &val);
+		iterator insert(const_iterator position, const value_type &val) {
+			if(check_size()) reallocate();
+			difference_t  n = first_free - position; //理论上不会为负值。
+			iterator last = first_free, pre = last - 1;
+			for(size_type i = 0; i < n; ++i) {
+				construct(last, *pre);
+				destroy(pre);
+				--last;
+				--pre;
+			}
+			construct(position, val);
+			++first_free;
+			return position;
+		}
 
-		iterator insert(const_iterator position, size_type n, const value_type &val);
+		//返回的是第一个插入的元素位置迭代器
+		iterator insert(const_iterator position, size_type n, const value_type &val) {
+			while(cap - first_free < n) reallocate();
+			if(first_free - position < n) {
+				first_free = std::uninitialized_copy_n(position, first_free - position, position + n);
+				destroy(position, first_free);
+				std::uninitialized_fill_n(position, n, val);	
+				return position;
+			}
 
+			else {
+				iterator premove = first_free, needcto = first_free + n;
+				for(size_type i = 0; i < first_free - position; ++i) {
+					construct(--needcto, *--premove);
+					destroy(premove);	
+				}
+				std::uninitialized_fill_n(position, n, val);
+			}
+			return position;
+		}
+/*-------------------------------分割线----------------------------------------------*/
 		template <class InputIterator>
 		iterator insert(const_iterator position, InputIterator first, InputIterator last);
 		iterator insert(const_iterator position, std::initializer_list<value_type> il);  //need std to mystl
 		iterator insert(const_iterator position, value_type &&val);
 
-		void emplace_back();
+/*------------2020.7.18解决以上三个函数，包括first指向的类型不是容器类型,移动插入-----------------*/
 		void pop_back() {
 			if(empty()) throw std::runtime_error("underflow_error");
 			data_allocator.destroy(--first_free);
@@ -256,12 +290,43 @@ namespace mystl {
 
 		//重载运算符
 
-		bool operator<
-		bool operator<=(c)
-		bool operator>
-		bool operator>=
-		bool operator!=
-		bool operator==
+		bool operator<(const vector &rhs) const {
+			for(size_type i = 0, j = 0; ;) {
+				if(i >= size() && j >= rhs.size()) {
+					break;
+				}
+				else if((i >= size() && j < size()) || *this[i] < rhs[j]) {
+					return true;
+				}
+				else if((j >= size() && i < size()) || *this[i] >= rhs[j]) {
+					break;
+				}
+				else {
+					++i;
+					++j;
+				}
+			}
+			return false;
+		}
+		bool operator>(const vector &rhs) const {
+			return rhs < *this;
+		}
+
+		bool operator<=(const vector &rhs) const {
+			return !(rhs < *this);
+		}
+
+		bool operator>=(const vector &rhs) const {
+			return !(*this < rhs);
+		}
+
+		bool operator!=(const vector &rhs) const {
+			return *this < rhs || rhs < *this;
+		}
+
+		bool operator==(const vector &rhs) const {
+			return !(*this < rhs) && !(rhs < *this);
+		}
 	};
 
 }
