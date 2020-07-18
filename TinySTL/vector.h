@@ -7,7 +7,7 @@
 #include <cstddef>
 //#include "construct.h"
 //#include "alloc.h"
-//#include "allocator.h"
+#include "allocator.h"
 #include <exception>			
 #include <stdexcept>
 #include <algorithm>  /*之后换成自己写的*/
@@ -17,7 +17,7 @@
 /*配置器后面fix bug */
 /*2020.7.14*/
 
-
+/*对于异常安全函数，提供三个保证　基本承诺，强烈保证，不抛出异常*/
 
 namespace mystl {
 	template <typename T, typename Alloc = alloc> 
@@ -38,7 +38,7 @@ namespace mystl {
 		iterator first_free;
 		iterator cap;
 
-		iterator allocate(differenct_t num) {
+		iterator allocate(difference_type num) {
 			return data_allocator.allocate(num);
 		}
 		void deallocate() {
@@ -68,6 +68,7 @@ namespace mystl {
 		iterator alloc_n_construct(const iterator first, const iterator last) {
 			iterator start = allocate(last - first);
 			std::uninitialized_copy(first, last, start); //std need to mystl;
+			return start;
 		}
 
 		void construct(iterator dest, const value_type &value) {
@@ -105,13 +106,26 @@ namespace mystl {
 			cap = elements + rhs.capacity();
 		}
 /*----------------------------------分割线--------------------------------------------*/
-		vector(vector&&);
-		vector&& operator=(vector&&);
+		/*不抛出异常保证*/
+		vector(vector &&rhs) noexcept: elements(rhs.elements), first_free(rhs.first_free), cap(rhs.cap) {
+			rhs.elements = rhs.first_free = rhs.cap = nullptr;
+		}
+
+		vector&& operator=(vector &&rhs) noexcept {
+			if(this != &rhs) {
+				free();
+				elements = rhs.elements;
+				first_free = rhs.first_free;
+				cap = rhs.cap;
+				elements = first_free = cap = nullptr;
+			}
+		}
 /*----------------------------2020.7.18解决移动构造函数和移动赋值运算符-------------------*/
 		/*拷贝赋值运算符*/
+		/*基本异常保证*/
 		vector& operator=(const vector &rhs) {
-			difference_t size = rhs.size();
-			interator start = alloc_n_construct(rhs.elements, rhs.first_free);
+			difference_type size = rhs.size();
+			iterator start = alloc_n_construct(rhs.elements, rhs.first_free);
 			free();
 			elements = start;
 			first_free = cap = start + size;
@@ -190,7 +204,7 @@ namespace mystl {
 
 		iterator insert(const_iterator position, const value_type &val) {
 			if(check_size()) reallocate();
-			difference_t  n = first_free - position; //理论上不会为负值。
+			difference_type n = first_free - position; //理论上不会为负值。
 			iterator last = first_free, pre = last - 1;
 			for(size_type i = 0; i < n; ++i) {
 				construct(last, *pre);
@@ -225,15 +239,41 @@ namespace mystl {
 		}
 /*-------------------------------分割线----------------------------------------------*/
 		template <class InputIterator>
-		iterator insert(const_iterator position, InputIterator first, InputIterator last);
-		iterator insert(const_iterator position, std::initializer_list<value_type> il);  //need std to mystl
-		iterator insert(const_iterator position, value_type &&val);
+		iterator insert(const_iterator position, InputIterator first, InputIterator last) {
+			size_type i = 0;
+			for(; first != last; ++first) {
+				insert(position + i, *first);
+			}
+			return position;
+		}
+
+		iterator insert(const_iterator position, std::initializer_list<value_type> il) {
+			size_type i = 0;
+			for(/*std::initializer_list::iterator*/auto  begin = il.begin(); begin != il.end(); ++begin) {
+				insert(position + i, *begin);
+			}
+		}	//need std to mystl
+
+		iterator insert(const_iterator position, value_type &&val) {
+			if(check_size()) reallocate();
+			difference_type n = first_free - position; //理论上不会为负值。
+			iterator last = first_free, pre = last - 1;
+			for(size_type i = 0; i < n; ++i) {
+				construct(last, *pre);
+				destroy(pre);
+				--last;
+				--pre;
+			}
+			data_allocator.allocate(position, std::move(val));
+			++first_free;
+		}
 
 /*------------2020.7.18解决以上三个函数，包括first指向的类型不是容器类型,移动插入-----------------*/
 		void pop_back() {
 			if(empty()) throw std::runtime_error("underflow_error");
 			data_allocator.destroy(--first_free);
 		}
+
 		iterator erase(iterator pos) {
 			if(pos + 1 != end) {
 				std::copy(pos + 1, first_free, pos);
@@ -241,12 +281,14 @@ namespace mystl {
 			destroy(--first_free);
 			return pos;
 		}
-		iterator erase(isterator first, iterator last) {
+
+		iterator erase(iterator first, iterator last) {
 			iterator i = std::copy(last, first_free, first); //need std to mystl
 			destroy(i, first_free);
 			first_free = first_free - last + first;
 			return first;
 		}
+
 		void resize(size_type new_size, const value_type &X) {
 			if(new_size > this->size()) {
 				for(size_type i = 0; i < this->size() - new_size; ++i) {
@@ -259,6 +301,7 @@ namespace mystl {
 				}
 			}
 		}
+
 		void resize(size_type new_size, value_type &&X) {
 			if(new_size > this->size()) {
 				for(size_type i = 0; i < this->size() - new_size; ++i) {
@@ -271,6 +314,7 @@ namespace mystl {
 				}
 			}
 		}
+
 		void resize(size_type new_size, value_type X = value_type()) {
 			if(new_size > this->size()) {
 				for(size_type i = 0; i < this->size() - new_size; ++i) {
@@ -283,6 +327,7 @@ namespace mystl {
 				}
 			}
 		}
+
 		void swap(vector &x);
 		void clear() {
 			erase(first_free, elements);
