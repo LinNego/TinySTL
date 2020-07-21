@@ -132,5 +132,7 @@ template <typename type>
     	typedef __true_type has_trivial_destructor;
     	typedef __true_type is_POD_type;
     }; //不需要const T*的偏特例化,可以直接使用T*的偏特化。
+
+
 }
 #endif
