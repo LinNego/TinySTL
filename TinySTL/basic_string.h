@@ -8,6 +8,7 @@
 #include <cstring>
 
 /*for c++11　以后需要修改成自己头文件*/
+#include <exception>
 #include <memory>
 #include <type_traits>
 #include <initializer_list>
@@ -17,7 +18,7 @@
 
 namespace mystl {
 
-	/*初始每次分配100，之后都是2 * 100 + 1*/
+	/*初始每次分配100，之后都是2 * n + m*/
 	template <typename charT, typename traits = std::char_traits<charT>, typename Alloc = std::allocator<charT> >
 	class basic_string {
 	public:
@@ -541,30 +542,169 @@ namespace mystl {
 			/*string*/
 		basic_string& insert (size_type pos, const basic_string& str) {
 			size_type len = str.size() + size();
-			if(len >= capacity) {
+			size_type backnum = _size - pos;
+			if(len >= capacity()) {
 				iterator newstart = reallocate(2 * len + 1);
 				free();	
 				elements = newstart;
-
+				_cap = 2 * len + 1;
 			}
+			memmove(elements + pos + str.size(), elements + pos, backnum);
+			iterator cur = elements + pos;
+			destroy(cur, str.size());
+			for(size_type i= 0; i < str.size(); ++i) {
+				alloc.construct(cur++, str[i]);
+			}
+			_size += str.size();
+			return *this;
 		}
 			/*substring*/
 		basic_string& insert (size_type pos, const basic_string& str,
-							size_type subpos, size_type sublen);
+							size_type subpos, size_type sublen) {
+            size_type len = sublen + size(); 
+			size_type backnum = _size - pos;
+			if(len >= capacity()) {
+				iterator newstart = reallocate(2 * len + 1);
+				free();	
+				elements = newstart;
+				_cap = 2 * len + 1;
+			}
+			memmove(elements + pos + sublen, elements + pos, backnum);
+			iterator cur = elements + pos;
+			destroy(cur, sublen);
+			for(size_type i = 0; i < sublen; ++i) {
+				alloc.construct(cur++, str[subpos + i]);
+			}
+			_size += sublen;
+			return *this;
+		}
 			/*c-string*/
-		basic_string& insert (size_type pos, const charT* s);
+		basic_string& insert (size_type pos, const charT* s) {
+			size_type sublen = strlen(s);
+            size_type len = sublen + size(); 
+			size_type backnum = _size - pos;
+			if(len >= capacity()) {
+				iterator newstart = reallocate(2 * len + 1);
+				free();	
+				elements = newstart;
+				_cap = 2 * len + 1;
+			}
+			memmove(elements + pos + sublen, elements + pos, backnum);
+			iterator cur = elements + pos;
+			destroy(cur, sublen);
+			for(size_type i = 0; i < sublen; ++i) {
+				alloc.construct(cur++, s[i]);
+			}
+			_size += sublen;
+			return *this;
+
+		}
 			/*buffer*/
-		basic_string& insert (size_type pos, const charT* s, size_type n);
+		basic_string& insert (size_type pos, const charT* s, size_type n) {
+			size_type sublen = n;
+            size_type len = sublen + size();
+			size_type backnum = _size - pos;
+			if(len >= capacity()) {
+				iterator newstart = reallocate(2 * len + 1);
+				free();	
+				elements = newstart;
+				_cap = 2 * len + 1;
+			}
+			memmove(elements + pos + sublen, elements + pos, backnum);
+			iterator cur = elements + pos;
+			destroy(cur, sublen);
+			for(size_type i = 0; i < sublen; ++i) {
+				alloc.construct(cur++, s[i]);
+			}
+			_size += sublen;
+			return *this;
+		}
 			/*fill*/
-		basic_string& insert (size_type pos,   size_type n, charT c);
-		iterator insert (const_iterator p, size_type n, charT c);
+		basic_string& insert (size_type pos, size_type n, charT c) {
+			size_type sublen = n;
+            size_type len = sublen + size();
+			size_type backnum = _size - pos;
+			if(len >= capacity()) {
+				iterator newstart = reallocate(2 * len + 1);
+				free();	
+				elements = newstart;
+				_cap = 2 * len + 1;
+			}
+			memmove(elements + pos + sublen, elements + pos, backnum);
+			iterator cur = elements + pos;
+			destroy(cur, sublen);
+			for(size_type i = 0; i < sublen; ++i) {
+				alloc.construct(cur++, c);
+			}
+			_size += sublen;
+			return *this;
+
+		}
+		iterator insert (iterator p, size_type n, charT c) {
+			size_type len = n + size();
+			size_type backnum = elements + _size - p, prenum = p - elements;
+			if(len >= capacity()) {
+				iterator newstart = reallocate(2 * len + 1);
+				free();	
+				elements = newstart;
+				_cap = 2 * len + 1;
+			}
+			memmove(elements + prenum + n, elements + prenum, backnum);
+			iterator ret = elements + prenum;
+			destroy(ret, n);
+			for(size_type i = 0; i < n; ++i) {
+				alloc.construct(ret + i, c);
+			}
+			_size += n;
+			return ret;
+		}
 			/*single character*/
-		iterator insert (const_iterator p, charT c);
+		iterator insert (iterator p, charT c) {
+			return insert(p, 1, c);
+		}
 			/*range*/
 		template <class InputIterator>
-		iterator insert (iterator p, InputIterator first, InputIterator last);
+		iterator insert (iterator p, InputIterator first, InputIterator last) {
+			size_type n = 0;
+			InputIterator temp = first;
+			while(temp != last) ++n;
+			size_type len = n + size();
+			size_type backnum = elements + _size - p, prenum = p - elements;
+			if(len >= capacity()) {
+				iterator newstart = reallocate(2 * len + 1);
+				free();	
+				elements = newstart;
+				_cap = 2 * len + 1;
+			}
+			memmove(elements + prenum + n, elements + prenum, backnum);
+			iterator ret = elements + prenum;
+			destroy(ret, n);
+			for(size_type i = 0; i < n; ++i) {
+				alloc.construct(ret + i, *first++);
+			}
+			_size += n;
+			return ret;
+
+		}
 			/*initializer list*/
-		basic_string& insert (const_iterator p, std::initializer_list<charT> il);
+		basic_string& insert (iterator p, std::initializer_list<charT> il)  {
+			size_type len = il.size() + size();
+			size_type backnum = elements + _size - p, prenum = p - elements;
+			if(len >= capacity()) {
+				iterator newstart = reallocate(2 * len + 1);
+				free();	
+				elements = newstart;
+				_cap = 2 * len + 1;
+			}
+			memmove(elements + prenum + il.size(), elements + prenum, backnum);
+			iterator ret = elements + prenum;
+			destroy(ret, il.size());
+			for(size_type i = 0; i < il.size(); ++i) {
+				alloc.construct(ret + i, il[i]);
+			}
+			_size += il.size();
+			return ret;
+		}
 
 			/*sequence*/
 		basic_string& erase(size_type pos = 0, size_type len = npos) {
@@ -601,6 +741,87 @@ namespace mystl {
 			difference_t num = end() - last;
 			memmove(first, last, num);
 			return first;
+		}
+		
+				/*string*/
+		basic_string& replace (size_type pos, size_type len, const basic_string& str) {
+			if(pos >= size()) throw std::out_of_range();
+			size_type backnum = _cap - pos, destroy_num;
+			if(len > backnum) {
+				iterator newstart = reallocate(2 * (len + pos) + 1);
+				elements = newstart;
+				_cap = 2 * (len + pos) + 1;
+				if(_cap > max_size()) throw std::length_error();
+			}
+			destroy_num = min(len, size() - pos);
+			if(len > size() - pos) _size = size + len - size() + pos;
+			destroy(pos, destroy_num);
+			iterator cur = elements + pos;
+			for(size_type i = 0; i < len; ++i) {
+				alloc.construct(cur++, str[i]);
+			}	
+			return *this;	
+		}
+		basic_string& replace (iterator i1, iterator i2, const basic_string& str) {
+			(*this).erase(i1, i2);
+			(*this).insert(i1 - elements, str);
+			return *this;
+		}
+
+				/*substring*/
+		basic_string& replace (size_type pos, size_type len, const basic_string& str,
+							size_type subpos, size_type sublen) {
+            (*this).erase(pos, len);
+			(*this).insert(pos, str, subpos, sublen);
+			return *this;
+		}
+				/*c-string*/
+		basic_string& replace (size_type pos, size_type len, const charT* s) {
+			(*this).erase(pos, len);
+			(*this).insert(pos, s);
+			return *this;
+		}
+
+		basic_string& replace (iterator i1, iterator i2, const charT* s) {
+			(*this).erase(i1, i2);
+			(*this).insert(i1 - elements, s);
+			return *this;
+		}
+				/*buffer*/
+		basic_string& replace (size_type pos, size_type len, const charT* s, size_type n) {
+			(*this).erase(pos, len);
+			(*this).insert(pos, s, n);
+			return *this;
+		}
+		basic_string& replace (iterator i1, iterator i2, const charT* s, size_type n) {
+			(*this).erase(i1, i2);
+			(*this).insert(i1, s, n);
+			return *this;
+		}
+				/*fill*/
+		basic_string& replace (size_type pos, size_type len, size_type n, charT c) {
+			(*this).erase(pos, len);
+			(*this).insert(pos, n, c);
+			return *this;
+		}
+		basic_string& replace (iterator i1, iterator i2, size_type n, charT c) {
+			(*this).erase(i1, i2);
+			(*this).insert(i1, n, c);
+			return *this;
+		}
+				/*range*/
+		template <class InputIterator>
+		basic_string& replace (iterator i1, iterator i2,
+							InputIterator first, InputIterator last) {
+            (*this).erase(i1, i2);
+			(*this).insert(i1, first, last);
+			return *this;
+		}
+				/*initializer list*/
+		basic_string& replace (iterator i1, iterator i2, std::initializer_list<charT> il) {
+			(*this).erase(i1, i2);
+			(*this).insert(i1, il);
+			return *this;
 		}
 
 
@@ -643,20 +864,87 @@ namespace mystl {
 			}
 			return ret;
 		}
+
+				/*string*/
+		size_type find (const basic_string& str, size_type pos = 0) const noexcept {
+			
+		}
+				/*c-string*/
+		size_type find (const charT* s, size_type pos = 0) const;
+				/*buffer*/
+		size_type find (const charT* s, size_type pos, size_type n) const;
+				/*character*/
+		size_type find (charT c, size_type pos = 0) const noexcept;
 		basic_string substr(size_type pos = 0, size_type len = npos) {
 			basic_string ret(*this, pos, len);
 		}
 			/*string*/
-		int compare (const basic_string& str) const noexcept;
+		int compare (const basic_string& str) const noexcept {
+			if(size() != str.size()) return -1;
+			for(size_type i = 0; i < size(); ++i) {
+				if(!char_traits<charT>::eq((*this)[i], str[i])) {
+					if((*this)[i] > str[i]) return 1;
+					else return -1;
+				}
+			}	
+			return 0;
+		}
 			/*substrings*/
-		int compare (size_type pos, size_type len, const basic_string& str) const;
+		int compare (size_type pos, size_type len, const basic_string& str) const {
+			if(len != str.size()) return -1;
+			for(size_type i = 0; i < size(); ++i) {
+				if(!char_traits<charT>::eq((*this)[pos + i], str[i])) {
+					if((*this)[pos + i] > str[i]) return 1;
+					else return -1;
+				}
+			}
+			return 0;
+		}
 		int compare (size_type pos, size_type len, const basic_string& str,
-					size_type subpos, size_type sublen) const;
+					size_type subpos, size_type sublen) const {
+            if(len != sublen) return -1;
+			for(size_type i = 0; i < len; ++i) {
+				if(!char_traits<charT>::eq((*this)[i + pos], str[i + subpos])) {
+					if((*this)[pos + i] > str[i + subpos]) return 1;
+					else return -1;
+				}
+			}
+			return 0;
+		}
 			/*c-string*/
-		int compare (const charT* s) const;
-		int compare (size_type pos, size_type len, const charT* s) const;
+		int compare(const charT* s) const {
+			size_type len = strlen(s);
+			if(len != size()) return -1;
+			for(size_type i = 0; i < len; ++i) {
+				if(!char_traits<charT>::eq((*this)[i], s[i])) {
+					if((*this)[i] > s[i]) return 1;
+					else return -1;
+				}
+			}
+			return 0;
+		}
+		int compare(size_type pos, size_type len, const charT* s) const {
+			size_type len2 = strlen(s);
+			if(len != len2) return -1;
+			for(size_type i = 0; i < len; ++i) {
+				if(!char_traits<charT>::eq((*this)[i + pos], s[i])) {
+					if((*this)[i + pos] > s[i]) return 1;
+					else return -1;
+				}
+			}
+			return 0;
+		}
 			/*buffer*/
-		int compare (size_type pos, size_type len, const charT* s, size_type n) const;
+		int compare(size_type pos, size_type len, const charT* s, size_type n) const {
+			if(len != n) return -1;
+			for(size_type i = 0; i < len; ++i) {
+				if(!char_traits<charT>::eq((*this)[i], s[i])) {
+					if((*this)[i] > s[i]) return 1;
+					else return -1;
+				}
+			}
+			return 0;
+		}
 	};
 
 	/*以下是非成员函数*/
@@ -771,6 +1059,7 @@ namespace mystl {
 			}
 			return true;
 		}
+
 		template <class charT, class traits, class Alloc>
 		bool operator<(const charT* lhs, const basic_string<charT,traits,Alloc>& rhs) {
 			typename basic_string<charT, traits, Alloc>::size_type i = 0, j =0, len;
@@ -834,122 +1123,124 @@ namespace mystl {
 
 
 		/*(4)*/
-	template <class charT, class traits, class Alloc>
-	bool operator<=(const basic_string<charT,traits,Alloc>& lhs,
-							const basic_string<charT,traits,Alloc>& rhs) {
-		return !(rhs < lhs);
-	}
+		template <class charT, class traits, class Alloc>
+		bool operator<=(const basic_string<charT,traits,Alloc>& lhs,
+								const basic_string<charT,traits,Alloc>& rhs) {
+			return !(rhs < lhs);
+		}
 
-	template <class charT, class traits, class Alloc>
-	bool operator<=(const charT* lhs, const basic_string<charT,traits,Alloc>& rhs) {
-		return !(rhs < lhs);
-	}
+		template <class charT, class traits, class Alloc>
+		bool operator<=(const charT* lhs, const basic_string<charT,traits,Alloc>& rhs) {
+			return !(rhs < lhs);
+		}
 
-	template <class charT, class traits, class Alloc>
-	bool operator<=(const basic_string<charT,traits,Alloc>& lhs, const charT* rhs) {
-		return !(rhs < rhs);
-	}
+		template <class charT, class traits, class Alloc>
+		bool operator<=(const basic_string<charT,traits,Alloc>& lhs, const charT* rhs) {
+			return !(rhs < rhs);
+		}
 
 
 
 		/*(5)*/
-	template <class charT, class traits, class Alloc>
-	bool operator>(const basic_string<charT,traits,Alloc>& lhs,
-						const basic_string<charT,traits,Alloc>& rhs) {
-		return rhs < lhs;
-	}
-
-	template <class charT, class traits, class Alloc>
-	bool operator>(const charT* lhs, const basic_string<charT,traits,Alloc>& rhs) {
-		return rhs < lhs;	
-	}
-
-	template <class charT, class traits, class Alloc>
-	bool operator>(const basic_string<charT,traits,Alloc>& lhs, const charT* rhs) {
-		return rhs < lhs;
-	}
-
-
-		/*(6)*/
-	template <class charT, class traits, class Alloc>
-	bool operator>=(const basic_string<charT,traits,Alloc>& lhs,
-						const basic_string<charT,traits,Alloc>& rhs) {
-		return !(lhs < rhs);
-	}
-	template <class charT, class traits, class Alloc>
-	bool operator>=(const charT* lhs, const basic_string<charT,traits,Alloc>& rhs) {
-		return !(lhs < rhs);
-	}
-	template <class charT, class traits, class Alloc>
-	bool operator>= (const basic_string<charT,traits,Alloc>& lhs, const charT* rhs) {
-		return !(lhs < rhs);
-	}
-
-
-	template <class charT, class traits, class Alloc>
-	void swap(basic_string<charT,traits,Alloc>& x,
-					basic_string<charT,traits,Alloc>& y) {
-		x.swap(y);
-	}
-
-
-	/*重载的符合标准的原型*/
-	/************************************************************************************************/
-	// template <class charT, class traits, class Alloc>
-	// basic_istream<charT,traits>& operator>>(basic_istream<charT, traits> &is, basic_string<charT,traits,Alloc>& str);
-	// template <class charT, class traits, class Alloc>
-	// basic_ostream<charT,traits>& operator<<(basic_ostream<charT,traits>&os ,const basic_string<charT,traits,Alloc>& str);
-	//同理还有getline
-	/************************这个TinySTL并不是实现输入输出,所以不使用这个原型 ******************************/
-
-	template <class charT, class traits, class Alloc>
-	std::istream& operator>>(std::istream&is, basic_string<charT,traits,Alloc>& str) {
-		charT ch;
-		while(is >> ch) {
-			str += ch;	
+		template <class charT, class traits, class Alloc>
+		bool operator>(const basic_string<charT,traits,Alloc>& lhs,
+							const basic_string<charT,traits,Alloc>& rhs) {
+			return rhs < lhs;
 		}
-		return is;
-	}
-	template <class charT, class traits, class Alloc>
-	std::ostream& operator<<(std::ostream& os,const basic_string<charT,traits,Alloc>& str) {
-			typename basic_string<charT, traits, Alloc>::size_type len = str.size(), i = 0;
-			while(i < len) {
-				os << str[i++];
-			}
-			return os;
+
+		template <class charT, class traits, class Alloc>
+		bool operator>(const charT* lhs, const basic_string<charT,traits,Alloc>& rhs) {
+			return rhs < lhs;	
+		}
+
+		template <class charT, class traits, class Alloc>
+		bool operator>(const basic_string<charT,traits,Alloc>& lhs, const charT* rhs) {
+			return rhs < lhs;
+		}
+
+
+			/*(6)*/
+		template <class charT, class traits, class Alloc>
+		bool operator>=(const basic_string<charT,traits,Alloc>& lhs,
+							const basic_string<charT,traits,Alloc>& rhs) {
+			return !(lhs < rhs);
 		}
 		template <class charT, class traits, class Alloc>
-		std::istream& getline (std::istream& is, basic_string<charT,traits,Alloc>& str, charT delim) {
+		bool operator>=(const charT* lhs, const basic_string<charT,traits,Alloc>& rhs) {
+			return !(lhs < rhs);
+		}
+		template <class charT, class traits, class Alloc>
+		bool operator>= (const basic_string<charT,traits,Alloc>& lhs, const charT* rhs) {
+			return !(lhs < rhs);
+		}
+
+
+		template <class charT, class traits, class Alloc>
+		void swap(basic_string<charT,traits,Alloc>& x,
+						basic_string<charT,traits,Alloc>& y) {
+			x.swap(y);
+		}
+
+
+		/*重载的符合标准的原型*/
+		/************************************************************************************************/
+		// template <class charT, class traits, class Alloc>
+		// basic_istream<charT,traits>& operator>>(basic_istream<charT, traits> &is, basic_string<charT,traits,Alloc>& str);
+		// template <class charT, class traits, class Alloc>
+		// basic_ostream<charT,traits>& operator<<(basic_ostream<charT,traits>&os ,const basic_string<charT,traits,Alloc>& str);
+		//同理还有getline
+		/************************这个TinySTL并不是实现输入输出,所以不使用这个原型 ******************************/
+
+		template <class charT, class traits, class Alloc>
+		std::istream& operator>>(std::istream&is, basic_string<charT,traits,Alloc>& str) {
 			charT ch;
-			while(is >> ch && ch != delim) {
-				str += ch;
+			while(is >> ch) {
+				str += ch;	
 			}
 			return is;
 		}
 		template <class charT, class traits, class Alloc>
-		std::istream& getline (std::istream&& is, basic_string<charT,traits,Alloc>& str, charT delim) {
+		std::ostream& operator<<(std::ostream& os,const basic_string<charT,traits,Alloc>& str) {
+				typename basic_string<charT, traits, Alloc>::size_type len = str.size(), i = 0;
+				while(i < len) {
+					os << str[i++];
+				}
+				return os;
+			}
+			template <class charT, class traits, class Alloc>
+			std::istream& getline (std::istream& is, basic_string<charT,traits,Alloc>& str, charT delim) {
+				charT ch;
+				while(is >> ch && ch != delim) {
+					str += ch;
+				}
+				return is;
+			}
+			template <class charT, class traits, class Alloc>
+			std::istream& getline (std::istream&& is, basic_string<charT,traits,Alloc>& str, charT delim) {
+				charT ch;
+				while(is >> ch && ch != delim) {
+				str += ch;
+			}
+			return is;
+		}
+
+		template <class charT, class traits, class Alloc>
+		std::istream& getline (std::istream& is, basic_string<charT,traits,Alloc>& str) {
 			charT ch;
-			while(is >> ch && ch != delim) {
-			str += ch;
+			while(is >> ch && ch != static_cast<charT>('\n')) {
+				str += ch;
+			}
+			return is;
 		}
-		return is;
-	}
-	template <class charT, class traits, class Alloc>
-	std::istream& getline (std::istream& is, basic_string<charT,traits,Alloc>& str) {
-		charT ch;
-		while(is >> ch && ch != static_cast<charT>('\n')) {
-			str += ch;
+
+		template <class charT, class traits, class Alloc>
+		std::istream& getline (std::istream&& is, basic_string<charT,traits,Alloc>& str) {
+			charT ch;
+			while(is >> ch && ch != static_cast<charT>('\n')) {
+				str += ch;
+			}
+			return is;
 		}
-		return is;
-	}
-	template <class charT, class traits, class Alloc>
-	std::istream& getline (std::istream&& is, basic_string<charT,traits,Alloc>& str) {
-		charT ch;
-		while(is >> ch && ch != static_cast<charT>('\n')) {
-			str += ch;
-		}
-		return is;
-	}
 		
 
 
