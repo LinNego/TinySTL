@@ -11,7 +11,9 @@
 #include <exception>
 #include <memory>
 #include <type_traits>
+#include <vector>
 #include <initializer_list>
+#include <iterator>
 
 #include "char_traits.h"
 
@@ -31,6 +33,8 @@ namespace mystl {
 		typedef typename std::allocator_traits<allocator_type>::const_pointer const_pointer;
 	   	typedef charT* iterator;
 		typedef const charT* const_iterator;
+/*std*/ typedef std::reverse_iterator<iterator> reverse_iterator;
+/*std*/ typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 		typedef typename std::allocator_traits<allocator_type>::difference_type difference_t;
 		typedef typename std::allocator_traits<allocator_type>::size_type size_type;
 	public:
@@ -67,6 +71,37 @@ namespace mystl {
 				alloc.construct(newstart++, *first++);
 			}
 			return newstart;
+		}
+		void GetNext(std::vector<charT> &Next, const basic_string &s) {
+			Next[0] = -1;
+			size_type len = s.size();
+			difference_t i = 0, j = -1;
+			while(i < len) {
+				if(j == -1 || s[i] == s[j]) {
+					i++;
+					j++;
+					Next[i] = j;	
+				}
+				else {
+					j = Next[j];
+				}
+			}
+		}
+
+		void GetNext(std::vector<charT> &Next, const char *s) {
+			Next[0] = -1;
+			size_type len = strlen(s);
+			difference_t i = 0, j = -1;
+			while(i < len) {
+				if(j == -1 || s[i] == s[j]) {
+					i++;
+					j++;
+					Next[i] = j;
+				}
+				else {
+					j = Next[j];
+				}
+			}
 		}
 
 		iterator reallocate(size_type len) {
@@ -867,19 +902,286 @@ namespace mystl {
 
 				/*string*/
 		size_type find (const basic_string& str, size_type pos = 0) const noexcept {
+			std::vector<charT> Next(str.size(), 0);
+			GetNext(Next, str);
+			size_type i = pos, j = 0;
+			while(i < size() && j < str.size()) {
+				if(j == -1 || char_traits<charT>::eq((*this)[i], str[i])) {
+					++i;
+					++j;
+				}
+				else {
+					j = Next[j];
+				}
+			}
+			if(j == str.size()) {
+				return i - j;
+			}
+			else return npos;
 			
 		}
 				/*c-string*/
-		size_type find (const charT* s, size_type pos = 0) const;
+		size_type find (const charT* s, size_type pos = 0) const {
+			size_type len = strlen(s);
+			std::vector<charT> Next(len, pos);
+			GetNext(Next, s);
+			size_type i = pos, j = 0;
+			while(i < size() && j < len) {
+				if(j == -1 || char_traits<charT>::eq((*this)[i], s[i])) {
+					++i;
+					++j;
+				}
+				else {
+					j = Next[j];
+				}
+			}
+			if(j == len) {
+				return i - j;
+			}
+			else return npos;
+		}
 				/*buffer*/
-		size_type find (const charT* s, size_type pos, size_type n) const;
+		size_type find (const charT* s, size_type pos, size_type n) const {
+			size_type len = strlen(s);
+			std::vector<charT> Next(len, 0);
+			GetNext(Next, s);
+			size_type i = pos, j = 0;
+			while(i < pos + n && j < len) {
+				if(j == -1 || char_traits<charT>::eq((*this)[i], s[j])) {
+					++i;
+					++j;
+				}
+				else {
+					j = Next[j];
+				}
+			}
+			if(j == len) {
+				return i - n;
+			}
+			else return npos;
+		}
 				/*character*/
-		size_type find (charT c, size_type pos = 0) const noexcept;
-		basic_string substr(size_type pos = 0, size_type len = npos) {
-			basic_string ret(*this, pos, len);
+		size_type find (charT c, size_type pos = 0) const noexcept {
+			while(pos < size()) {
+				if(char_traits<charT>::eq((*this)[pos], c)) return pos;
+				else ++pos;
+			}	
+			return npos;
 		}
 			/*string*/
-		int compare (const basic_string& str) const noexcept {
+		size_type rfind(const basic_string& str, size_type pos = npos) const noexcept {
+			std::vector<charT> Next(str.size(), 0);
+			size_type i = size() + pos, j = 0;
+			while(i >= static_cast<size_type>(0) && j < str.size()) {
+				if(j == -1 || char_traits<charT>::eq((*this)[i], str[j])) {
+					--i;
+					++j;
+				}
+				else {
+					j = Next[j];
+				}
+			}
+			if(j == str.size()) {
+				return i + j;
+			}
+			else return npos;
+		}
+			/*c-string*/	
+		size_type rfind (const charT* s, size_type pos = npos) const {
+			size_type len = strlen(s);
+			std::vector<charT> Next(len, 0);
+			GetNext(Next, s);
+			size_type i = size() + pos, j = 0;
+			while(i >= static_cast<size_type>(0) && j < len) {
+				if(j == -1 || char_traits<charT>::eq((*this)[i], s[j])) {
+					--i;
+					++j;
+				}
+				else {
+					j = Next[j];
+				}
+			}
+			if(j == len) {
+				return i + j;
+			}
+			else return npos;
+		}
+			/*buffer*/
+		size_type rfind (const charT* s, size_type pos, size_type n) const {
+			size_type len = strlen(s);
+			std::vector<charT> Next(len, 0);
+			GetNext(Next, s);
+			size_type i = size() + pos, j = 0;
+			while(i >= size() - n && j < len) {
+				if(j == -1 || char_traits<charT>::eq((*this)[i], s[j])) {
+					--i;
+					++j;
+				}
+				else {
+					j = Next[j];
+				}
+			}
+			if(j == len) {
+				return i + j;
+			}
+			else return npos;
+
+		}
+			/*character*/
+		size_type rfind (charT c, size_type pos = npos) const noexcept {
+			if(pos == npos) pos = size();
+			while(pos >= static_cast<size_type>(0)) {
+				if(char_traits<charT>::eq(c, (*this)[pos])) {
+					return pos;
+				}
+				else --pos;
+			}
+			return npos;
+		}
+
+			/*string*/
+		size_type find_first_of (const basic_string& str, size_type pos = 0) const noexcept {
+			size_type ret = npos;
+			for(size_type i = 0; i < str.size(); ++i) {
+				if((ret = find(str[i], pos)) != npos)  return ret;
+			}
+			return ret;
+		}
+
+			/*c-string*/
+		size_type find_first_of (const charT* s, size_type pos = 0) const {
+			size_type ret = npos, len = strlen(s);
+			for(size_type i = 0; i < len; ++i) {
+				if((ret = find(s[i], pos)) != npos) return ret;
+			}
+			return ret;
+		}
+		
+		
+			/*buffer*/
+		size_type find_first_of (const charT* s, size_type pos, size_type n) const {
+			size_type ret = npos;
+			for(size_type i = 0; i < strlen(s); ++i) {
+				size_type tpos = pos;
+				while(tpos < pos + n) {
+					if(char_traits<charT>::eq((*this)[tpos], s[i])) return tpos;
+					++tpos;
+				}
+			}
+			return ret;
+		}
+			/*character*/
+		size_type find_first_of (charT c, size_type pos = 0) const noexcept {
+			return find(c, pos);
+		}
+			/*string*/
+		size_type find_last_of (const basic_string& str, size_type pos = npos) const noexcept {
+			size_type ret = npos;
+			for(size_type i = 0; i < str.size(); ++i) {
+				if((ret = rfind(str[i], pos)) != npos)  return ret;
+			}
+			return ret;
+		}
+			/*c-string*/
+		size_type find_last_of (const charT* s, size_type pos = npos) const {
+			size_type ret = npos;
+			size_type len = strlen(s);
+			for(size_type i = 0; i < len; ++i) {
+				if((ret = rfind(s[i], pos)) != npos)  return ret;
+			}
+			return ret;
+		}
+			/*buffer*/
+		size_type find_last_of (const charT* s, size_type pos, size_type n) const {
+			size_type len = strlen(s);
+			for(size_type i = 0; i < len; ++i) {
+				size_type tpos = pos;	
+				while(tpos > pos - n); {
+					if(char_traits<charT>::eq(s[i], (*this)[tpos])) return tpos;
+					--tpos;
+				}
+			}
+			return npos;
+		}
+			/*character*/
+		size_type find_last_of (charT c, size_type pos = npos) const noexcept {
+			return rfind(c, pos);
+		}
+
+			/*string*/
+		size_type find_first_not_of (const basic_string& str, size_type pos = 0) const noexcept {
+			for(size_type i = pos; i < size(); ++i) {
+				if(str.find((*this)[i], 0) == npos) return i;
+			}
+			return npos;
+		}
+			/*c-string*/
+		size_type find_first_not_of (const charT* s, size_type pos = 0) const {
+			basic_string temp(s);
+			for(size_type i = pos; i < size(); ++i) {
+				if(temp.find((*this)[i], 0) == npos) return i;
+			}
+			return npos;
+		}
+
+			/*buffer*/
+		size_type find_first_not_of (const charT* s, size_type pos, size_type n) const {
+			basic_string temp(s);
+			for(size_type i = pos; i < pos + n; ++i) {
+				if(temp.find((*this)[i], 0) == npos) return i;
+			}
+			return npos;
+		}
+			/*character*/
+		size_type find_first_not_of (charT c, size_type pos = 0) const noexcept {
+			for(size_type i = pos; i < size(); ++i) {
+				if(char_traits<charT>::eq(c, (*this)[i]) == npos) return i;
+			}
+			return npos;
+
+		}
+
+			/*string*/
+		size_type find_last_not_of (const basic_string& str, size_type pos = npos) const noexcept {
+			if(pos == npos) pos = size() - 1;
+			for(size_type i = pos; i >= 0; --i) {
+				if(str.find((*this)[i], 0) == npos) return i;
+			}
+			return npos;
+		}
+			/*c-string*/
+		size_type find_last_not_of (const charT* s, size_type pos = npos) const {
+			basic_string str(s);
+			if(pos == npos) pos = size() - 1;
+			for(size_type i = pos; i >= 0; --i) {
+				if(str.find((*this)[i], 0) == npos) return i;
+			}
+			return npos;
+		}
+			/*buffer*/
+		size_type find_last_not_of (const charT* s, size_type pos, size_type n) const {
+			basic_string str(s);
+			if(pos == npos) pos = size() - 1;
+			for(size_type i = pos; i > pos - n; --i) {
+				if(str.find((*this)[i], 0) == npos) return i;
+			}
+			return npos;
+		}
+			/*character*/
+		size_type find_last_not_of (charT c, size_type pos = npos) const noexcept {
+			if(pos == npos) pos = size() - 1;
+			for(size_type i = pos; i >= 0; -i) {
+				if(char_traits<charT>::eq(c, (*this)[i])) return i;
+			}
+			return npos;
+		}
+
+		basic_string substr(size_type pos = 0, size_type len = npos) {
+			basic_string ret(*this, pos, len);
+			return ret;
+		}
+			/*string*/
+		int compare(const basic_string& str) const noexcept {
 			if(size() != str.size()) return -1;
 			for(size_type i = 0; i < size(); ++i) {
 				if(!char_traits<charT>::eq((*this)[i], str[i])) {
@@ -890,7 +1192,7 @@ namespace mystl {
 			return 0;
 		}
 			/*substrings*/
-		int compare (size_type pos, size_type len, const basic_string& str) const {
+		int compare(size_type pos, size_type len, const basic_string& str) const {
 			if(len != str.size()) return -1;
 			for(size_type i = 0; i < size(); ++i) {
 				if(!char_traits<charT>::eq((*this)[pos + i], str[i])) {
@@ -900,7 +1202,7 @@ namespace mystl {
 			}
 			return 0;
 		}
-		int compare (size_type pos, size_type len, const basic_string& str,
+		int compare(size_type pos, size_type len, const basic_string& str,
 					size_type subpos, size_type sublen) const {
             if(len != sublen) return -1;
 			for(size_type i = 0; i < len; ++i) {
