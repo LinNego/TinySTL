@@ -14,6 +14,7 @@
 #include <vector>
 #include <initializer_list>
 #include <iterator>
+#include <iostream>  //for test
 
 #include "char_traits.h"
 
@@ -36,7 +37,7 @@ namespace mystl {
 /*std*/ typedef std::reverse_iterator<iterator> reverse_iterator;
 /*std*/ typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 		typedef typename std::allocator_traits<allocator_type>::difference_type difference_t;
-		typedef typename std::allocator_traits<allocator_type>::size_type size_type;
+		typedef typename std::allocator_traits<allocator_type>::size_type size_type; //maybe non-sign???
 	public:
 		static constexpr size_type npos = static_cast<size_type>(-1);
 	private:
@@ -115,42 +116,52 @@ namespace mystl {
 	/*构造函数*/
 
 		/*默认构造函数*/
-		explicit basic_string(const allocator_type &alloc = allocator_type()): alloc(alloc), elements(alloc.allocate(100)), _size(0), _cap(100) { }
+		explicit basic_string(const allocator_type &alloc = allocator_type()): alloc(alloc), elements(this->alloc.allocate(100)), _size(0), _cap(100) { }
 
 		/*拷贝构造函数*/
 		basic_string(const basic_string &str): 
-			alloc(str.alloc), elements(alloc.allocate(str._cap), _size(str._size), _cap(str._cap)){
+			alloc(str.alloc), elements(this->alloc.allocate(str._cap)), _size(str._size), _cap(str._cap){
+                 //std::cout << "拷贝构造\n" << std::endl; //for test
 				copy_from(elements, str, 0, str._size);
 		}
 
 		basic_string(const basic_string &str, const allocator_type& alloc): 
-			alloc(alloc),elements(alloc.allocate(str._cap)), _size(str._size), _cap(str._cap) { 
+			alloc(alloc),elements(this->alloc.allocate(str._cap)), _size(str._size), _cap(str._cap) { 
 				copy_from(elements, str, 0, str._size);
 		}
 
 
 		basic_string(const basic_string &str, size_type pos, size_type len = npos,const allocator_type &alloc = allocator_type()) :
-			alloc(alloc), elements(alloc.allocate(len)), _size(len), _cap(str._cap) {
+			alloc(alloc) {
+                 if(len == npos) len = str.size() - pos;
+                 elements = this->alloc.allocate(len);
+                 _size = len;
+                 _cap = len;
 				copy_from(elements, str, pos, len);
 		}
 
 
 		basic_string(const charT *s, const allocator_type& alloc = allocator_type()): 
-			alloc(alloc), elements(alloc.allocate(strlen(s))), _size(strlen(s)), _cap(_size) {
+			alloc(alloc), elements(this->alloc.allocate(strlen(s))), _size(strlen(s)), _cap(_size) {
 				memcpy(elements, s, _size);
 		}
 
 
 		basic_string(const charT *s, size_type n, const allocator_type& alloc = allocator_type()): 
-			alloc(alloc), elements(alloc.allocate(n)), _size(n), _cap(_size) {
+			alloc(alloc){
+                size_type len = strlen(s);
+                if(n > len) throw std::bad_alloc();
+                elements = this->alloc.allocate(n);
+                 _size = n;
+                 _cap = n; 
 				memcpy(elements, s, _size);
 		}
 
 		basic_string(size_type n, charT c, const allocator_type &alloc = allocator_type()):
-						alloc(alloc), elements(alloc.allocate(n)), _size(n), _cap(n) {
+						alloc(alloc), elements(this->alloc.allocate(n)), _size(n), _cap(n) {
 			iterator it = elements;
 			for(int i = 0; i < n; ++i) {
-				alloc.construct(it++, c);
+				this->alloc.construct(it++, c);
 			}
 		}
 		template <typename InputIterator>
@@ -159,30 +170,32 @@ namespace mystl {
 				++_size;
 			}
 			_cap = _size;
-			elements = alloc.allocate(_size);
+			elements = this->alloc.allocate(_size);
 			iterator i = elements;
 			for(; first != last; ++first) {
-				alloc.construct(i, *first);
+				this->alloc.construct(i++, *first);
 			}
 		}
 
 		basic_string(std::initializer_list<charT> il, const allocator_type& alloc = allocator_type()):
-						alloc(alloc), elements(alloc.allocate(il.size())), _size(il.size()), _cap(_size) {
+					alloc(alloc), elements(this->alloc.allocate(il.size())), _size(il.size()), _cap(_size) {
 			iterator it = elements;
 			for(auto &i: il) {
-				alloc.construct(it++, i);
+				this->alloc.construct(it++, i);
 			}
 		}
 
 		basic_string(basic_string &&str) noexcept: 
 						alloc(allocator_type()), elements(str.elements), _size(str._size), _cap(str._cap)  {
+            //std::cout << *elements << std::endl; for test
 			str.elements = nullptr;
-			_size = _cap = 0;
+			str._size = str._cap = 0;
+             
 		}
 
 
 		basic_string(basic_string &&str, const allocator_type &alloc) : 
-				alloc(allocator_type()), elements(str.elements), _size(str._size), _cap(str._cap) {
+				alloc(alloc), elements(str.elements), _size(str._size), _cap(str._cap) {
 			str.elements = nullptr;
 			_size = _cap = 0;
 		}
@@ -205,14 +218,18 @@ namespace mystl {
 			size_t len = strlen(s);
 			iterator start = alloc.allocate(len);
 			memcpy(start, s, len);
-			~basic_string();
+			free();
+             elements = start;
 			_size = _cap = static_cast<size_type>(len);
 			return *this;
 		}
 
 		basic_string& operator=(charT c) {
-			destroy(elements, _size);
+			iterator start = alloc.allocate(size());
+             free();
+             elements = start;
 			*elements = c;
+             _size = 1;
 			return *this;
 		}
 
@@ -224,7 +241,7 @@ namespace mystl {
 			for(auto &i: il) {
 				alloc.construct(temp++, i);
 			}
-			~basic_string();
+			free();
 			elements = start;
 			_size = _cap = len;
 			return *this;
@@ -255,7 +272,7 @@ namespace mystl {
 		size_type max_size() const noexcept { return SIZE_MAX;}
 		void resize(size_type n) {
 			if(size() < n) {
-				if(max_size < n) {
+				if(_cap < n) {
 					iterator newstart = reallocate(2 * n + 1);
 					free();
 					elements = newstart;
@@ -275,14 +292,14 @@ namespace mystl {
 				}
 			}
 			else {
-				destroy(elements + n, n - size());
+				destroy(elements + n, size() - n); //what the hell n - size() ......
 				_size = n;
 			}
 		}
 
 		void resize(size_type n, charT ch) {
 			if(size() < n) {
-				if(max_size < n) {
+				if(_cap < n) {
 					iterator newstart = reallocate(2 * n + 1);
 					free();
 					elements = newstart;
@@ -302,7 +319,7 @@ namespace mystl {
 				}
 			}
 			else {
-				destroy(elements + n, n - size());
+				destroy(elements + n, size() - n);
 				_size = n;
 			}
 		}
@@ -312,16 +329,17 @@ namespace mystl {
 		}
 
 		void reserver(size_type n = 0) {
-			if(n > capacity) {
+			if(n > capacity()) {
 				iterator newstart = reallocate(2 * n + 1);
 				free();
 				elements = newstart;
-				_cap = 2 * n;
+				_cap = 2 * n + 1;
 			}
 		}
 
 		void clear() noexcept {
-			destroy(elements, size());
+			for(auto &i: *this)
+				i = static_cast<charT>('\0');
 		}
 
 		bool empty() const noexcept {
@@ -348,22 +366,18 @@ namespace mystl {
 		}
 
 		reference back() {
-			if(!empty()) {
-				return *(elements + _size - 1);
-			}
+			return *(elements + _size - 1);
 		}
 
 		const_reference back() const {
-			if(!empty()) {
-				return *(elements + _size + 1);
-			}
+			return *(elements + _size + 1);
 		}
 
 		reference front() {
-			if(!empty()) return *(elements);
+			return *(elements);
 		}
 		const_reference front() const {
-			if(!empty()) return *(elements);
+			return *(elements);
 		}
 
 		/*Modifiers　修改*/
@@ -377,7 +391,7 @@ namespace mystl {
 				newstart = elements + size();
 				_size = len;
 				_cap = 2 * len + 1;
-				copy_from(newstart, str, 0, str.size);
+				copy_from(newstart, str, 0, str.size());
 			}
 			else {
 				copy_from(elements + size(), str, 0, str.size());
@@ -390,7 +404,7 @@ namespace mystl {
 		/*c-string*/
 		basic_string& operator+= (const charT* s) {
 			size_type len = strlen(s);
-			if(len + size() >= capacity) {
+			if(len + size() >= capacity()) {
 				iterator newstart = reallocate(2 * (len + size()) + 1);
 				free();
 				elements = newstart;
@@ -407,7 +421,7 @@ namespace mystl {
 
 		/*character*/
 		basic_string& operator+= (charT c) {
-			if(capacity < size()) {
+			if(capacity() < size()) {
 				iterator newstart = reallocate(2 * (1 + size()) + 1);
 				free();
 				elements = newstart;
@@ -454,7 +468,8 @@ namespace mystl {
 				_size = len;
 			}	
 			else {
-				copy_from(elements, str, subpos, sublen);
+				copy_from(elements + size(), str, subpos, sublen);
+				//std::cout << "test" << std::endl; //for test
 				_size = len;
 			}
 			return *this;
@@ -491,20 +506,22 @@ namespace mystl {
 					alloc.construct(newstart++, *first++);
 				}
 				_cap = 2 * (len + size());
-				_size = len;
+				_size += len;
 				return *this;
 			}
 			else {
-				iterator s = elements + len;
+				std::cout << "test" << std::endl;//for test
+				iterator s = elements + size();
 				while(first != last) {
 					alloc.construct(s++, *first++);
 				}
 				_size += len;
 			}
+			return *this;
 		}
 			/*initializer list*/
 		basic_string& append (std::initializer_list<charT> il) {
-			*this = il;
+			*this += il;
 			return *this;
 		}
 

@@ -7,7 +7,7 @@
 #include <cstddef>
 //#include "construct.h"
 //#include "alloc.h"
-#include "allocator.h"
+//#include "allocator.h"
 #include <exception>			
 #include <stdexcept>
 #include <algorithm>  /*之后换成自己写的*/
@@ -20,7 +20,7 @@
 /*对于异常安全函数，提供三个保证　基本承诺，强烈保证，不抛出异常*/
 
 namespace mystl {
-	template <typename T, typename Alloc = alloc> 
+	template <typename T, typename Alloc = std::allocator<T> > 
 	class vector {
 	public:
 		typedef T value_type;
@@ -32,8 +32,8 @@ namespace mystl {
 		typedef size_t size_type;
 		typedef ptrdiff_t difference_type;
 	private:
-		//typedef simple_alloc<value_type, Alloc> data_allocator;
-		std::allocator<value_type> data_allocator;
+		typedef Alloc data_allocator;
+		//std::allocator<value_type> data_allocator;
 		iterator elements;
 		iterator first_free;
 		iterator cap;
