@@ -68,28 +68,29 @@ namespace mystl {
 		template <typename InputIterator>
 		iterator iterator_construct(InputIterator first, InputIterator last, size_type n) {
 			iterator newstart = alloc.allocate(2 * n + 1);
+			iterator ret = newstart;
 			while(first != last) {
 				alloc.construct(newstart++, *first++);
 			}
-			return newstart;
+			return ret;
 		}
-		void GetNext(std::vector<charT> &Next, const basic_string &s) {
-			Next[0] = -1;
+		void GetNext(std::vector<charT> &Nextarr, const basic_string &s) const{
+			Nextarr[0] = -1;
 			size_type len = s.size();
 			difference_t i = 0, j = -1;
 			while(i < len) {
 				if(j == -1 || s[i] == s[j]) {
 					i++;
 					j++;
-					Next[i] = j;	
+					Nextarr[i] = j;	
 				}
 				else {
-					j = Next[j];
+					j = Nextarr[j];
 				}
 			}
 		}
 
-		void GetNext(std::vector<charT> &Next, const char *s) {
+		void GetNext(std::vector<charT> &Next, const charT *s) const {
 			Next[0] = -1;
 			size_type len = strlen(s);
 			difference_t i = 0, j = -1;
@@ -205,6 +206,7 @@ namespace mystl {
 		}
 
 		basic_string& operator=(const basic_string& str) {
+			std::cout << "test" << std::endl;
 			iterator start = alloc.allocate(str._cap);
 			copy_from(start, str, 0, str._size);
 			free();
@@ -253,6 +255,7 @@ namespace mystl {
 			_cap = str._cap;
 			str.elements = nullptr;
 			_size = _cap = 0;
+			std::cout << "test " << *this << std::endl;
 			return *this;
 		}
 	
@@ -338,8 +341,7 @@ namespace mystl {
 		}
 
 		void clear() noexcept {
-			for(auto &i: *this)
-				i = static_cast<charT>('\0');
+			_size = 0;
 		}
 
 		bool empty() const noexcept {
@@ -510,7 +512,7 @@ namespace mystl {
 				return *this;
 			}
 			else {
-				std::cout << "test" << std::endl;//for test
+				//std::cout << "test" << std::endl;//for test
 				iterator s = elements + size();
 				while(first != last) {
 					alloc.construct(s++, *first++);
@@ -550,7 +552,7 @@ namespace mystl {
 			/*buffer*/
 		basic_string& assign (const charT* s, size_type n) {
 			iterator newstart = alloc.allocate(n);
-			memecpy(newstart, s + n, n);
+			memcpy(newstart, s, n);
 			free();
 			elements = newstart;
 			_size = _cap = n;
@@ -559,8 +561,9 @@ namespace mystl {
 			/*fill*/
 		basic_string& assign (size_type n, charT c) {
 			iterator newstart = alloc.allocate(n);
+			iterator temp = newstart;
 			for(size_type i = 0; i < n; ++i) {
-				alloc.construct(newstart++, c);
+				alloc.construct(temp++, c);
 			}
 			free();
 			elements = newstart;
@@ -573,7 +576,7 @@ namespace mystl {
 			InputIterator i = first;
 			size_type len = 0;
 			while(i++ != last) ++len;
-			iterator newstart = iterator_construct(first, last);
+			iterator newstart = iterator_construct(first, last, len);
 			free();
 			elements = newstart;
 			_size = len;
@@ -593,6 +596,7 @@ namespace mystl {
 		}
 			/*string*/
 		basic_string& insert (size_type pos, const basic_string& str) {
+            if(pos > size()) throw std::out_of_range("string insert error");
 			size_type len = str.size() + size();
 			size_type backnum = _size - pos;
 			if(len >= capacity()) {
@@ -613,6 +617,7 @@ namespace mystl {
 			/*substring*/
 		basic_string& insert (size_type pos, const basic_string& str,
 							size_type subpos, size_type sublen) {
+            if(pos > size()) throw std::out_of_range("substring insert error");
             size_type len = sublen + size(); 
 			size_type backnum = _size - pos;
 			if(len >= capacity()) {
@@ -632,6 +637,7 @@ namespace mystl {
 		}
 			/*c-string*/
 		basic_string& insert (size_type pos, const charT* s) {
+            if(pos > size()) throw std::out_of_range("c-string insert error");
 			size_type sublen = strlen(s);
             size_type len = sublen + size(); 
 			size_type backnum = _size - pos;
@@ -653,6 +659,7 @@ namespace mystl {
 		}
 			/*buffer*/
 		basic_string& insert (size_type pos, const charT* s, size_type n) {
+            if(pos > size()) throw std::out_of_range("buffer insert error");
 			size_type sublen = n;
             size_type len = sublen + size();
 			size_type backnum = _size - pos;
@@ -673,6 +680,7 @@ namespace mystl {
 		}
 			/*fill*/
 		basic_string& insert (size_type pos, size_type n, charT c) {
+            if(pos > size()) throw std::out_of_range("fill insert error");
 			size_type sublen = n;
             size_type len = sublen + size();
 			size_type backnum = _size - pos;
@@ -693,6 +701,7 @@ namespace mystl {
 
 		}
 		iterator insert (iterator p, size_type n, charT c) {
+			if(p > elements + size() || p < elements) throw std::out_of_range("iterator insert error");
 			size_type len = n + size();
 			size_type backnum = elements + _size - p, prenum = p - elements;
 			if(len >= capacity()) {
@@ -717,9 +726,11 @@ namespace mystl {
 			/*range*/
 		template <class InputIterator>
 		iterator insert (iterator p, InputIterator first, InputIterator last) {
+			if(p > elements + size() || p < elements) throw std::out_of_range("range insert error");
+		//	std::cout << "test in" << std::endl;
 			size_type n = 0;
 			InputIterator temp = first;
-			while(temp != last) ++n;
+			while(temp++ != last) ++n;
 			size_type len = n + size();
 			size_type backnum = elements + _size - p, prenum = p - elements;
 			if(len >= capacity()) {
@@ -740,6 +751,7 @@ namespace mystl {
 		}
 			/*initializer list*/
 		basic_string& insert (iterator p, std::initializer_list<charT> il)  {
+			if(p > elements + size() || p < elements) throw std::out_of_range("initialist insert error");
 			size_type len = il.size() + size();
 			size_type backnum = elements + _size - p, prenum = p - elements;
 			if(len >= capacity()) {
@@ -752,18 +764,20 @@ namespace mystl {
 			iterator ret = elements + prenum;
 			destroy(ret, il.size());
 			for(size_type i = 0; i < il.size(); ++i) {
-				alloc.construct(ret + i, il[i]);
+				alloc.construct(ret + i, *(il.begin() + i));
 			}
 			_size += il.size();
-			return ret;
+			return *this;
 		}
 
 			/*sequence*/
 		basic_string& erase(size_type pos = 0, size_type len = npos) {
+			if(pos > size() || pos + len > size()) throw std::out_of_range("erase pos > size");
 			if(empty()) return *this;
+			if(len == npos) len = size() - pos;
 			destroy(elements + pos, len);
 			iterator start = elements + pos, last = elements + pos + len;
-			while(len--) {
+			while(last != elements + size()) {
 				alloc.construct(start++, *last);
 				alloc.destroy(last++);
 			}
@@ -772,6 +786,7 @@ namespace mystl {
 		}
 			/*character*/
 		iterator erase (iterator p) {
+			if(p > elements + size() || p < elements) throw std::out_of_range("character pos > size");
 			if(p == end())	return end();
 			if(empty()) return end();
 			iterator ret = p;
@@ -782,36 +797,27 @@ namespace mystl {
 				++p;
 				alloc.destroy(next++);
 			}
+			--_size;
 			return ret;
 		}
 			/*range (3)*/
 		iterator erase (iterator first, iterator last) {
+			if(first < elements || first > elements + size() || last < elements || last > elements + size() || last < first) 
+				throw std::out_of_range("range out of bound");
 			if(first == end()) return end();
 			if(empty()) return end();
 			difference_t len = last - first;
 			destroy(first, len);
 			difference_t num = end() - last;
 			memmove(first, last, num);
+			_size -= len;
 			return first;
 		}
 		
 				/*string*/
 		basic_string& replace (size_type pos, size_type len, const basic_string& str) {
-			if(pos >= size()) throw std::out_of_range();
-			size_type backnum = _cap - pos, destroy_num;
-			if(len > backnum) {
-				iterator newstart = reallocate(2 * (len + pos) + 1);
-				elements = newstart;
-				_cap = 2 * (len + pos) + 1;
-				if(_cap > max_size()) throw std::length_error();
-			}
-			destroy_num = min(len, size() - pos);
-			if(len > size() - pos) _size = size + len - size() + pos;
-			destroy(pos, destroy_num);
-			iterator cur = elements + pos;
-			for(size_type i = 0; i < len; ++i) {
-				alloc.construct(cur++, str[i]);
-			}	
+			(*this).erase(pos, len);
+			(*this).insert(pos, str);
 			return *this;	
 		}
 		basic_string& replace (iterator i1, iterator i2, const basic_string& str) {
@@ -881,8 +887,8 @@ namespace mystl {
 			iterator temp = str.elements;
 			str.elements = elements;
 			elements = temp;
-			swap(_size, str._size);
-			swap(_cap, str._cap);
+			std::swap(_size, str._size);
+			std::swap(_cap, str._cap);
 		}
 
 		void pop_back() {
@@ -919,8 +925,8 @@ namespace mystl {
 
 				/*string*/
 		size_type find (const basic_string& str, size_type pos = 0) const noexcept {
-			std::vector<charT> Next(str.size(), 0);
-			GetNext(Next, str);
+			std::vector<charT> Nextarr(str.size(), 0);
+			GetNext(Nextarr, str);
 			size_type i = pos, j = 0;
 			while(i < size() && j < str.size()) {
 				if(j == -1 || char_traits<charT>::eq((*this)[i], str[i])) {
@@ -928,7 +934,7 @@ namespace mystl {
 					++j;
 				}
 				else {
-					j = Next[j];
+					j = Nextarr[j];
 				}
 			}
 			if(j == str.size()) {
@@ -939,8 +945,8 @@ namespace mystl {
 		}
 				/*c-string*/
 		size_type find (const charT* s, size_type pos = 0) const {
-			size_type len = strlen(s);
-			std::vector<charT> Next(len, pos);
+			size_type len = strlen(s + pos);
+			std::vector<charT> Next(len, 0);
 			GetNext(Next, s);
 			size_type i = pos, j = 0;
 			while(i < size() && j < len) {
@@ -1273,6 +1279,7 @@ namespace mystl {
 							const basic_string<charT,traits,Alloc>& rhs) {
 			basic_string<charT,	traits, Alloc> ret(lhs);
 			ret += rhs;
+			std::cout << ret << std::endl;
 			return ret;
 		}
 	
