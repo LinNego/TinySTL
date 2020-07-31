@@ -24,6 +24,7 @@ int main() {
     string i(std::move(string(h)));
    // string i(string(h));    //一个右值为什么没有调用移动构造函数呢？需要显示std::move()
     string j({'h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r','l', 'd'});
+    /*
     cout << b << endl;
     cout << c << endl;
     cout << d << endl;
@@ -106,10 +107,111 @@ int main() {
 
     b.push_back('h');
     cout << b << endl;
-    /*
-    std::string s;
-    cout << s.back() << endl;
-    cout << s.front() << endl;
+
+    b.assign(c);
+    cout << b << endl;
+
+    b.assign(c, 1, 4);
+    cout << b << endl;
+
+    b.assign("hello world");
+    cout << b << endl;
+
+    b.assign("hello world", 5);
+    cout << b << endl;
+
+    b.assign(10, 'c');
+    cout << b << endl;
+
+    b.assign(c.begin(), c.end());
+    cout << b << endl;
+
+    b.assign({'t','e','s','t'});
+    cout << b << endl;
+
+    b = c;
+    b.insert(1, c);  //pos >= size() 抛出out_of_range异常
+    cout << b << endl;
+
+    b.insert(1, c, 0, 2);
+    cout << b << endl;
+
+    //b.insert(100, 10, 'c');
+    //cout << b << endl;
+
+  //  b.insert(c.begin(), 'c'); //如果不是迭代器没有指向本区域，抛出out_of_range()
+    b.clear();
+    b.insert(b.begin(), c.begin(), c.end());
+    cout << b << endl;
+
+    b.insert(b.begin(), {'h'});
+    cout << b << endl;
+
+    b = "hello world";
+    b.erase(0, 2);
+    cout << b << endl;
+
+    b.erase(b.begin());
+    cout << b << endl;
+
+    b.erase(b.begin(), b.end());
+    cout << b << endl;
+
+    b = "hello world";
+    b.replace(0, 1, c);
+    cout << b << endl;
     */
+    b = "";
+    b.replace(b.begin(), b.end(), c);
+    cout << b << endl;
+
+    b.replace(0, 5, "Hello");
+    cout << b << endl;
+    b.replace(0, 5, "hello >>>>", 7);
+    cout << b << endl;
+
+    b.replace(0, b.size(), 7, 'h');
+    cout << b << endl;
+
+    b.replace(b.begin(), b.end(), "hello world");
+    cout << b << endl;
+    b = "";
+    b.replace(b.begin(), b.end(), c.begin(), c.end());
+    cout << b << endl;
+    b = "wo";
+    b.swap(c);
+    cout << b << endl;
+    cout << c << endl;
+    b.pop_back();
+    cout << b << endl;
+
+
+    b = "hello world hello wolrd";
+    auto t = b.find(string("world"));
+    cout << t << endl;
+
+    //t = b.find("wolrd");
+    b = "hello world";
+    c = "hello world";
+    cout << c << endl;
+    cout << b.compare(c) << endl;
+
+    cout << b.compare(0, 5, c) << endl;
+    cout << b.compare(0, 5, c, 0, 5) << endl;
+
+    cout << b.compare("hello") << endl;
+    cout << b.compare(0, 5, "hello") << endl;
+    
+    cout << b.compare(0, 5, "hello", 5) << endl;
+
+    cout << b << " " << c << endl;
+    //b += c;
+    //cout << b << endl;
+    b = b + c;
+    cout << b << endl;
+    //cout << t << endl;
+    std::string s;
+    //s.insert(10, "hello");
+    //cout << s << endl;
     return 0;
 }
